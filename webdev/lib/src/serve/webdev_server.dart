@@ -79,9 +79,11 @@ class WebDevServer {
     pipeline = pipeline.addMiddleware(interceptFavicon);
 
     // Only provide relevant build results
-    var filteredBuildResults = buildResults.asyncMap<BuildResult>((results) =>
-        results.results
-            .firstWhere((result) => result.target == options.target));
+    var filteredBuildResults = buildResults
+        .asyncMap<BuildResult>((results) => results.results.firstWhere(
+            (result) => result.target == options.target,
+            orElse: () => null))
+        .where((r) => r != null);
 
     Handler assetHandler;
     Dwds dwds;

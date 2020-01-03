@@ -10,6 +10,8 @@ import 'package:build_daemon/data/shutdown_notification.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+import 'frontend_asset_server.dart';
+
 final _sdkDir = p.dirname(p.dirname(Platform.resolvedExecutable));
 
 final _feServerBinary =
@@ -20,8 +22,9 @@ class FrontendServerClient implements BuildDaemonClient {
   final Process _feServer;
   final Stream<String> _feServerStdOutLines;
   final _buildTargets = <String, bool>{};
+  final FrontendAssetServer _assetServer;
 
-  FrontendServerClient._(this._logHandler, this._feServer)
+  FrontendServerClient._(this._logHandler, this._feServer, this._assetServer)
       : _feServerStdOutLines = _feServer.stdout
             .transform(utf8.decoder)
             .transform(const LineSplitter())
@@ -29,7 +32,7 @@ class FrontendServerClient implements BuildDaemonClient {
     _feServer.exitCode.then((_) => _finished.complete(null));
     _feServerStdOutLines.listen((line) => _logHandler(ServerLog((b) => b
       ..message = line
-      ..level = Level.INFO
+      ..level = Level.WARNING
       ..loggerName = 'FrontendServer')));
   }
 
@@ -51,15 +54,17 @@ class FrontendServerClient implements BuildDaemonClient {
               ...options,
             ],
             workingDirectory: workingDirectory),
+        await FrontendAssetServer.start(workingDirectory),
       );
 
   @override
   Stream<BuildResults> get buildResults => _buildResultsController.stream;
-  final _buildResultsController = StreamController<BuildResults>();
+  final _buildResultsController = StreamController<BuildResults>.broadcast();
 
   @override
   Future<void> close() async {
     await _buildResultsController.close();
+    await _assetServer.close();
     _feServer.stdin.writeln('quit');
   }
 
@@ -81,11 +86,15 @@ class FrontendServerClient implements BuildDaemonClient {
     for (var target in _buildTargets.keys) {
       var action = _buildTargets[target] ? 'recompile' : 'compile';
       _buildTargets[target] = true;
+      var absolutePath = p.absolute(p.join(target, 'main.dart'));
 
-      var command = '$action $target';
+      var command = StringBuffer('$action $absolutePath');
       if (action == 'recompile') {
         var boundaryKey = Uuid().v4();
-        command += '$boundaryKey\n$target\n$boundaryKey';
+        command
+          ..writeln(boundaryKey)
+          ..writeln(absolutePath)
+          ..write(boundaryKey);
       }
 
       _feServer.stdin.writeln(command);
@@ -96,7 +105,7 @@ class FrontendServerClient implements BuildDaemonClient {
           case 'StartedBuild':
             assert(line.startsWith('result'));
             feBoundaryKey = line.substring(line.indexOf(' ') + 1);
-            state = 'WaitingForResult';
+            state = 'WaitingForKey';
 
             _buildResultsController.add(
               BuildResults(
@@ -114,11 +123,12 @@ class FrontendServerClient implements BuildDaemonClient {
             return true;
           case 'GettingDiffs':
             if (line.startsWith(feBoundaryKey)) {
+              state = 'Done';
               return false;
             }
             return true;
           default:
-            throw StateError('Unreachable');
+            throw StateError('Unreachable! state is $state');
         }
       }).drain();
 

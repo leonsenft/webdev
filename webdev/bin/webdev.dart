@@ -26,6 +26,9 @@ Future main(List<String> args) async {
     if (e.path != null) {
       print('  ${e.path}');
     }
+    if (e.osError != null) {
+      print('  OsError: ${e.osError}');
+    }
     exitCode = ExitCode.config.code;
   } on PackageException catch (e) {
     var withUnsupportedArg =
