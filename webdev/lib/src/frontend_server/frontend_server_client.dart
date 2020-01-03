@@ -44,7 +44,6 @@ class FrontendServerClient implements BuildDaemonClient {
             p.join(_sdkDir, 'bin', 'dart'),
             [
               _feServerBinary,
-              '--incremental',
               '--sdk-root',
               _sdkDir,
               '--platform',
