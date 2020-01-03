@@ -9,12 +9,17 @@ import 'package:build_daemon/client.dart';
 import 'package:build_daemon/constants.dart';
 import 'package:build_daemon/data/server_log.dart';
 
+import 'frontend_server/frontend_server_client.dart';
 import 'util.dart';
 
 /// Connects to the `build_runner` daemon.
 Future<BuildDaemonClient> connectClient(String workingDirectory,
-        List<String> options, Function(ServerLog) logHandler) =>
-    BuildDaemonClient.connect(
+    List<String> options, Function(ServerLog) logHandler,
+    {bool useFrontendServer = true}) {
+  if (useFrontendServer) {
+    return FrontendServerClient.create(workingDirectory, options, logHandler);
+  } else {
+    return BuildDaemonClient.connect(
         workingDirectory,
         // On Windows we need to call the snapshot directly otherwise
         // the process will start in a disjoint cmd without access to
@@ -24,6 +29,8 @@ Future<BuildDaemonClient> connectClient(String workingDirectory,
           ..addAll(['run', 'build_runner', 'daemon'])
           ..addAll(options),
         logHandler: logHandler);
+  }
+}
 
 /// Returns the port of the daemon asset server.
 int daemonPort(String workingDirectory) {
