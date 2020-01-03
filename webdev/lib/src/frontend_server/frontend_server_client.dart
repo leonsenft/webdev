@@ -14,9 +14,6 @@ import 'frontend_asset_server.dart';
 
 final _sdkDir = p.dirname(p.dirname(Platform.resolvedExecutable));
 
-final _feServerBinary =
-    '/usr/local/google/home/jakemac/dart-lang-sdk/sdk/pkg/frontend_server/bin/frontend_server_starter.dart';
-
 class FrontendServerClient implements BuildDaemonClient {
   final Function(ServerLog) _logHandler;
   final Process _feServer;
@@ -43,7 +40,8 @@ class FrontendServerClient implements BuildDaemonClient {
         await Process.start(
             p.join(_sdkDir, 'bin', 'dart'),
             [
-              _feServerBinary,
+              p.join(
+                  _sdkDir, 'bin', 'snapshots', 'frontend_server.dart.snapshot'),
               '--sdk-root',
               _sdkDir,
               '--platform',
