@@ -31,6 +31,14 @@ class FrontendServerClient implements BuildDaemonClient {
       ..message = line
       ..level = Level.WARNING
       ..loggerName = 'FrontendServer')));
+
+    _feServer.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) => _logHandler(ServerLog((b) => b
+          ..message = line
+          ..level = Level.SEVERE
+          ..loggerName = 'FrontendServer')));
   }
 
   static Future<FrontendServerClient> create(String workingDirectory,
