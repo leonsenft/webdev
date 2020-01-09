@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:html';
 
+import 'package:webdev_example_app/message.dart';
+
 void main() {
   print('Initial Print');
 
@@ -14,7 +16,7 @@ void main() {
     print('Hello World');
     return ServiceExtensionResponse.result(json.encode({'success': true}));
   });
-  document.body.append(SpanElement()..text = 'Hello World!!');
+  document.body.append(SpanElement()..text = message);
 
   var count = 0;
   Timer.periodic(const Duration(seconds: 1), (_) {
