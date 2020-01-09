@@ -27,6 +27,7 @@ class FrontendAssetServer {
         .add(_sdkSourcesHandler())
         .add(createStaticHandler(p.current, defaultDocument: 'index.html'))
         .add(_handleJsModuleRequest)
+        .add(_handleJsSourceMapRequest)
         .add(_handleJsAppRequest);
 
     var server = await serve(cascade.handler, 'localhost', _assetServerPort);
@@ -40,20 +41,61 @@ class FrontendAssetServer {
 }
 
 Future<Response> _handleJsModuleRequest(Request request) async {
-  if (!request.requestedUri.path.endsWith('.dart.js')) {
+  if (!request.requestedUri.path.endsWith('.lib.js')) {
     return Response.notFound('Not Found');
   }
-  var absolutePath = p.absolute(request.requestedUri.path.substring(1));
-  var jsonFile = File('${p.withoutExtension(absolutePath)}.dill.json');
-  var info = jsonDecode(await jsonFile.readAsString())[absolutePath];
-  if (info == null) {
+  var jsonFile = File('.dart_tool/webdev/frontend_server/main.dart.dill.json');
+  String lookupPath;
+  if (request.requestedUri.path.startsWith('/web/packages')) {
+    lookupPath = request.requestedUri.path.substring(4);
+  } else {
+    lookupPath = request.requestedUri.path;
+  }
+  var sourcesInfo =
+      jsonDecode(await jsonFile.readAsString()) as Map<String, dynamic>;
+  var sourceInfo = sourcesInfo[lookupPath];
+  if (sourceInfo == null) {
     return Response.notFound('Not Found');
   }
 
-  var sourcesFile = File('${p.withoutExtension(absolutePath)}.dill.sources');
+  var sourcesFile =
+      File('.dart_tool/webdev/frontend_server/main.dart.dill.sources');
   var sourcesBytes = await sourcesFile.readAsBytes();
   var sourceBytes = sourcesBytes
-      .getRange(info['code'][0] as int, info['code'][1] as int)
+      .getRange(sourceInfo['code'][0] as int, sourceInfo['code'][1] as int)
+      .toList();
+  return Response.ok(utf8.decode(sourceBytes), headers: {
+    HttpHeaders.contentTypeHeader: 'application/javascript',
+  });
+}
+
+Future<Response> _handleJsSourceMapRequest(Request request) async {
+  if (!request.requestedUri.path.endsWith('.lib.js.map')) {
+    return Response.notFound('Not Found');
+  }
+  var jsonFile = File('.dart_tool/webdev/frontend_server/main.dart.dill.json');
+  String lookupPath;
+  if (request.requestedUri.path.startsWith('/web/packages')) {
+    lookupPath = request.requestedUri.path.substring(4);
+  } else {
+    lookupPath = request.requestedUri.path;
+  }
+  // Strip the .map, sources are looked up by their js path
+  lookupPath = p.withoutExtension(lookupPath);
+
+  var sourcesInfo =
+      jsonDecode(await jsonFile.readAsString()) as Map<String, dynamic>;
+  var sourceInfo = sourcesInfo[lookupPath];
+  if (sourceInfo == null) {
+    return Response.notFound('Not Found');
+  }
+
+  var sourcesFile =
+      File('.dart_tool/webdev/frontend_server/main.dart.dill.map');
+  var sourcesBytes = await sourcesFile.readAsBytes();
+  var sourceBytes = sourcesBytes
+      .getRange(
+          sourceInfo['sourcemap'][0] as int, sourceInfo['sourcemap'][1] as int)
       .toList();
   return Response.ok(utf8.decode(sourceBytes), headers: {
     HttpHeaders.contentTypeHeader: 'application/javascript',
@@ -61,7 +103,7 @@ Future<Response> _handleJsModuleRequest(Request request) async {
 }
 
 Future<Response> _handleJsAppRequest(Request request) async {
-  if (!request.requestedUri.path.endsWith('.js')) {
+  if (!request.requestedUri.path.endsWith('.dart.js')) {
     return Response.notFound('Not Found');
   }
   return Response.ok(_appBootstrap(request), headers: {
@@ -70,7 +112,7 @@ Future<Response> _handleJsAppRequest(Request request) async {
 }
 
 Handler _sdkSourcesHandler() {
-  var sdkServer = createStaticHandler(_sdkDir);
+  var sdkServer = createStaticHandler(p.join(_sdkDir, 'lib'));
   return (request) {
     if (request.requestedUri.pathSegments[1] != r'$sdk') {
       return Response.notFound('Not Found');
@@ -85,13 +127,13 @@ Handler _sdkSourcesHandler() {
 String _appBootstrap(Request request) {
   var relativePath = request.requestedUri.path.substring(1);
   var basename = p.url.basename(request.requestedUri.path);
-  var appModuleName = '${p.withoutExtension(basename)}.dart';
-  var moduleScope =
-      pathToJSIdentifier(p.absolute(p.url.withoutExtension(relativePath)));
+  var appModuleName = '${p.withoutExtension(basename)}.lib.js';
+  var moduleScope = pathToJSIdentifier(
+      p.url.withoutExtension(p.url.withoutExtension(relativePath)));
   return '''
 require.config({
     waitSeconds: 0,
-    paths: {"dart_sdk": "\$sdk/lib/dev_compiler/kernel/amd/dart_sdk"}
+    paths: {"dart_sdk": "/\$sdk/dev_compiler/kernel/amd/dart_sdk"}
 });
 
 require(["$appModuleName", "dart_sdk"], function(app, dart_sdk) {

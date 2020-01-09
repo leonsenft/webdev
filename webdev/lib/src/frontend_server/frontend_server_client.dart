@@ -56,6 +56,12 @@ class FrontendServerClient implements BuildDaemonClient {
               p.join(_sdkDir, 'lib', '_internal', 'ddc_sdk.dill'),
               '--target',
               'dartdevc',
+              '--filesystem-root',
+              p.current,
+              '--filesystem-scheme',
+              'org-dartlang-app',
+              '--output-dill',
+              '.dart_tool/webdev/frontend_server/main.dart.dill',
               ...options,
             ],
             workingDirectory: workingDirectory),
@@ -91,7 +97,7 @@ class FrontendServerClient implements BuildDaemonClient {
     for (var target in _buildTargets.keys) {
       var action = _buildTargets[target] ? 'recompile' : 'compile';
       _buildTargets[target] = true;
-      var absolutePath = p.absolute(p.join(target, 'main.dart'));
+      var absolutePath = 'org-dartlang-app:/${p.join(target, 'main.dart')}';
 
       var command = StringBuffer('$action $absolutePath');
       if (action == 'recompile') {
