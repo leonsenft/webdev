@@ -146,6 +146,7 @@ class ExpressionEvaluator {
         jsScope,
         currentModule,
         expression);
+    _printTrace('Expression evaluator: result: $compilationResult');
 
     // 5. send js expression to chrome to evaluate
 

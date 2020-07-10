@@ -162,6 +162,10 @@ class TestContext {
               .strategy;
 
           buildResults = daemonClient.buildResults;
+
+          // TODO: actual dill files here
+          expressionCompiler = await StandaloneExpressionCompiler.startIsolate(
+              const Stream.empty());
         }
         break;
       case CompilationMode.frontendServer:

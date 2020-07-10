@@ -77,7 +77,6 @@ class WebDevServer {
     }
 
     pipeline = pipeline.addMiddleware(interceptFavicon);
-
     // Only provide relevant build results
     var filteredBuildResults = buildResults.asyncMap<BuildResult>((results) {
       var result = results.results
@@ -118,6 +117,8 @@ class WebDevServer {
         verbose: options.configuration.verbose,
         enableDebugExtension: options.configuration.debugExtension,
         enableDebugging: options.configuration.debug,
+        expressionCompiler: await StandaloneExpressionCompiler.startIsolate(
+            const Stream.empty()),
       );
       pipeline = pipeline.addMiddleware(dwds.middleware);
       cascade = cascade.add(dwds.handler);
