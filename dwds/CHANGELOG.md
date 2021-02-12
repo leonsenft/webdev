@@ -6,9 +6,11 @@
   is paused.
 - Support keep-alive for debug service connections.
 - Depend on the latest `package:sse`.
+- Fix an issue where connections slow to disconnect would not be reused upon refresh.
 
 **Breaking changes:**
 - `LoadStrategy`s now require a `moduleInfoForEntrypoint`.
+- `AppConnection` replaces with `isInKeepAlive` with `isClosed`.
 
 ## 8.0.3
 

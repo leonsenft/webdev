@@ -92,7 +92,7 @@ class FakeSseConnection implements SseSocketConnection {
   final controllerOutgoing = StreamController<String>();
 
   @override
-  bool get isInKeepAlivePeriod => false;
+  bool get isClosed => false;
 
   @override
   StreamSink<String> get sink => controllerOutgoing.sink;

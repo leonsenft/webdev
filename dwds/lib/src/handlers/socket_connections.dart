@@ -13,8 +13,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// An individual (transport-agnostic) bidirectional socket connection.
 abstract class SocketConnection {
-  /// Whether this connection is currently in the KeepAlive timeout period.
-  bool get isInKeepAlivePeriod;
+  /// Whether this connection has been closed.
+  bool get isClosed;
 
   /// Messages added to the sink must be JSON encodable.
   StreamSink<dynamic> get sink;
@@ -36,11 +36,14 @@ abstract class SocketHandler {
 /// and HTTP POSTS for bidirectional communication by wrapping an [SseConnection].
 class SseSocketConnection extends SocketConnection {
   final SseConnection _connection;
+  final _closedCompleter = Completer();
 
-  SseSocketConnection(this._connection);
+  SseSocketConnection(this._connection) {
+    _connection.sink.done.whenComplete(_closedCompleter.complete);
+  }
 
   @override
-  bool get isInKeepAlivePeriod => _connection.isInKeepAlivePeriod;
+  bool get isClosed => _closedCompleter.isCompleted;
   @override
   StreamSink<dynamic> get sink => _connection.sink;
   @override
@@ -80,10 +83,10 @@ class SseSocketHandler extends SocketHandler {
 /// by wrapping [WebSocketChannel].
 class WebSocketConnection extends SocketConnection {
   final WebSocketChannel _channel;
-  WebSocketConnection(this._channel);
-
-  @override
-  bool get isInKeepAlivePeriod => false;
+  final _closedCompleter = Completer();
+  WebSocketConnection(this._channel) {
+    _channel.sink.done.whenComplete(_closedCompleter.complete);
+  }
 
   @override
   StreamSink<dynamic> get sink => _channel.sink;
@@ -94,6 +97,9 @@ class WebSocketConnection extends SocketConnection {
 
   @override
   void shutdown() => _channel.sink.close();
+
+  @override
+  bool get isClosed => _closedCompleter.isCompleted;
 }
 
 /// An implemenation of [SocketHandler] that accepts WebSocket connections and
